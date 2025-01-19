@@ -95,10 +95,18 @@ export function drawGame(state: State) {
   requestAnimationFrame(() => drawGame(state));
 }
 
+export function getWindowDimensions() {
+  const width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+  const height = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+  return { width, height };
+}
+
 export function resizeCanvas(canvas: HTMLCanvasElement) {
-  const { clientWidth, clientHeight } = document.documentElement;
-  canvas.width = clientWidth;
-  canvas.height = clientHeight;
+  const { width, height } = getWindowDimensions();
+  canvas.width = width;
+  canvas.height = height;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
 
   const ctx = canvas.getContext("2d")!;
   ctx.resetTransform();
