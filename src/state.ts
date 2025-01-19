@@ -1,5 +1,6 @@
 import { Player } from "./player";
 import { MovementKeys } from "./utils/types";
+import { Viewport } from "./viewport";
 
 export class State {
   private _ctx: CanvasRenderingContext2D;
@@ -14,10 +15,12 @@ export class State {
     ArrowDown: false,
   }; // check if the keys are currently depressed
   private _player: Player;
+  private _viewport: Viewport;
 
   constructor(ctx: CanvasRenderingContext2D) {
     this._ctx = ctx;
     this._player = new Player();
+    this._viewport = new Viewport();
   }
 
   get ctx() {
@@ -70,5 +73,13 @@ export class State {
 
   set player(value) {
     this._player = value;
+  }
+
+  get viewport() {
+    return this._viewport;
+  }
+
+  set viewport(value) {
+    this._viewport = value;
   }
 }

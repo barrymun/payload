@@ -7,6 +7,15 @@ import { State } from "./state";
 
 let state: State;
 
+function handleResize() {
+  const canvas = document.querySelector<HTMLCanvasElement>("#game");
+  if (!canvas) {
+    return;
+  }
+
+  state.viewport.screen = [canvas.width, canvas.height];
+}
+
 function handleLoad() {
   const ctx = document.querySelector<HTMLCanvasElement>("#game")?.getContext("2d");
   if (!ctx) {
@@ -18,6 +27,9 @@ function handleLoad() {
 
   window.addEventListener("keydown", handleKeyDown(state));
   window.addEventListener("keyup", handleKeyUp(state));
+
+  handleResize();
+  window.addEventListener("resize", handleResize);
 }
 
 window.addEventListener("load", handleLoad);
@@ -25,4 +37,5 @@ window.addEventListener("unload", () => {
   window.removeEventListener("load", handleLoad);
   window.removeEventListener("keydown", handleKeyDown(state));
   window.removeEventListener("keyup", handleKeyUp(state));
+  window.removeEventListener("resize", handleResize);
 });
