@@ -12,7 +12,7 @@ export const gameMap = [
   [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
   [0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
   [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 export const playerWidth = 30;
 export const playerHeight = 30;

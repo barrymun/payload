@@ -1,0 +1,4 @@
+yarn cspell
+yarn lint
+yarn test-ci
+yarn build
