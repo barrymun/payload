@@ -1,11 +1,23 @@
+import { Player } from "./player";
+import { MovementKeys } from "./types";
+
 export class State {
   private _ctx: CanvasRenderingContext2D;
   private _currentSecond = 0;
   private _frameCount = 0;
   private _framesLastSecond = 0;
+  private _lastFrameTime = 0; // keep track of the time the last frame was drawn in ms
+  private _keysDown: Record<MovementKeys, boolean> = {
+    "ArrowLeft": false,
+    "ArrowUp": false,
+    "ArrowRight": false,
+    "ArrowDown": false
+  }; // check if the keys are currently depreesed
+  private _player: Player;
 
-  constructor({ ctx }: { ctx: CanvasRenderingContext2D }) {
+  constructor(ctx: CanvasRenderingContext2D) {
     this._ctx = ctx;
+    this._player = new Player();
   }
 
   get ctx() {
@@ -34,5 +46,29 @@ export class State {
 
   set framesLastSecond(value) {
     this._framesLastSecond = value;
+  }
+
+  get lastFrameTime() {
+    return this._lastFrameTime;
+  }
+
+  set lastFrameTime(value) {
+    this._lastFrameTime = value;
+  }
+
+  get keysDown() {
+    return this._keysDown;
+  }
+
+  set keysDown(value) {
+    this._keysDown = value;
+  }
+
+  get player() {
+    return this._player;
+  }
+
+  set player(value) {
+    this._player = value;
   }
 }
