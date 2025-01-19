@@ -1,5 +1,5 @@
-import { State } from "./state";
-import { gameMap, mapHeight, mapWidth, tileHeight, tileWidth } from "./utils/consts";
+import { State } from "@state";
+import { gameMap, mapHeight, mapWidth, tileHeight, tileWidth } from "@utils/consts";
 
 export function drawGame(state: State) {
   const currentFrameTime = Date.now();
@@ -60,8 +60,8 @@ export function drawGame(state: State) {
 
   // fill out the map
   // only draw the tiles that are visible on the screen
-  for (let y = state.viewport.startTile[1]; y < state.viewport.endTile[1]; y++) {
-    for (let x = state.viewport.startTile[0]; x < state.viewport.endTile[0]; x++) {
+  for (let y = state.viewport.startTile[1]; y <= state.viewport.endTile[1]; y++) {
+    for (let x = state.viewport.startTile[0]; x <= state.viewport.endTile[0]; x++) {
       switch (gameMap[y][x]) {
         case 0:
           state.ctx.fillStyle = "#685b48";
@@ -93,4 +93,18 @@ export function drawGame(state: State) {
 
   state.lastFrameTime = currentFrameTime;
   requestAnimationFrame(() => drawGame(state));
+}
+
+export function resizeCanvas(canvas: HTMLCanvasElement) {
+  const { clientWidth, clientHeight } = document.documentElement;
+  canvas.width = clientWidth;
+  canvas.height = clientHeight;
+
+  const ctx = canvas.getContext("2d")!;
+  ctx.resetTransform();
+  ctx.scale(1, 1);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = "20px monospace";
+
+  return ctx;
 }

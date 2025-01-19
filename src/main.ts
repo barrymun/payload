@@ -1,9 +1,8 @@
-import "./assets/css/style.css";
+import "@assets/css/style.css";
 
+import { State } from "@state";
+import { drawGame, resizeCanvas } from "@utils/helpers/draw";
 import { handleKeyDown, handleKeyUp } from "@utils/helpers/key-bindings";
-
-import { drawGame } from "./helpers";
-import { State } from "./state";
 
 let state: State;
 
@@ -13,6 +12,7 @@ function handleResize() {
     return;
   }
 
+  resizeCanvas(canvas);
   state.viewport.screen = [canvas.width, canvas.height];
 }
 
@@ -21,7 +21,6 @@ function handleLoad() {
   if (!ctx) {
     return;
   }
-  ctx.font = "20px monospace";
   state = new State(ctx);
   requestAnimationFrame(() => drawGame(state));
 

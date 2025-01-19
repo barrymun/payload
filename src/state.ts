@@ -1,6 +1,6 @@
-import { Player } from "./player";
-import { MovementKeys } from "./utils/types";
-import { Viewport } from "./viewport";
+import { Player } from "@player";
+import { MovementKeys } from "@utils/types";
+import { Viewport } from "@viewport";
 
 export class State {
   private _ctx: CanvasRenderingContext2D;

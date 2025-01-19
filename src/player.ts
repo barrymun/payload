@@ -1,4 +1,4 @@
-import { playerHeight, playerWidth, tileWidth } from "./utils/consts";
+import { playerHeight, playerWidth, tileWidth } from "@utils/consts";
 
 export class Player {
   private _tileFrom = [1, 1]; // current tile position
