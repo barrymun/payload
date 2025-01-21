@@ -1,5 +1,6 @@
 import { State } from "@state";
-import { gameMap, mapHeight, mapWidth, tileHeight, tileWidth } from "@utils/consts";
+import { tileHeight, tileWidth } from "@utils/consts";
+import { TileType } from "@utils/enums";
 
 export function drawGame(state: State) {
   const currentFrameTime = Date.now();
@@ -15,38 +16,30 @@ export function drawGame(state: State) {
     state.frameCount++;
   }
 
-  // check if player is moving
-  if (!state.player.processMovement(currentFrameTime)) {
-    if (
-      state.keysDown.ArrowUp &&
-      state.player.tileFrom[1] > 0 &&
-      gameMap[state.player.tileFrom[1] - 1][state.player.tileFrom[0]] === 1
-    ) {
-      state.player.tileTo[1] -= 1;
-    } else if (
-      state.keysDown.ArrowDown &&
-      state.player.tileFrom[1] < mapHeight - 1 &&
-      gameMap[state.player.tileFrom[1] + 1][state.player.tileFrom[0]] === 1
-    ) {
-      state.player.tileTo[1] += 1;
-    } else if (
-      state.keysDown.ArrowLeft &&
-      state.player.tileFrom[0] > 0 &&
-      gameMap[state.player.tileFrom[1]][state.player.tileFrom[0] - 1] === 1
-    ) {
-      state.player.tileTo[0] -= 1;
-    } else if (
-      state.keysDown.ArrowRight &&
-      state.player.tileFrom[0] < mapWidth - 1 &&
-      gameMap[state.player.tileFrom[1]][state.player.tileFrom[0] + 1] === 1
-    ) {
-      state.player.tileTo[0] += 1;
+  const gravity = 5; //temp
+  const speed = 2; // temp
+
+  if (!state.player.isMining) {
+    // handle gravity
+    if (!state.keysDown.ArrowUp) {
+      state.player.move(state, "down", gravity);
     }
 
-    // check if the tile the player is moving to is different from the current tile
-    // this logic prevents the player from moving when they are already moving
-    if (state.player.tileFrom[0] !== state.player.tileTo[0] || state.player.tileFrom[1] !== state.player.tileTo[1]) {
-      state.player.timeMoved = currentFrameTime;
+    // check horizontal movement
+    if (state.keysDown.ArrowLeft && !state.keysDown.ArrowRight) {
+      state.player.move(state, "left", speed);
+    } else if (state.keysDown.ArrowRight && !state.keysDown.ArrowLeft) {
+      state.player.move(state, "right", speed);
+    }
+
+    // check if the player wants to fly (arrow up pressed)
+    if (state.keysDown.ArrowUp) {
+      state.player.move(state, "up", speed);
+    }
+
+    // check if the player wants to start mining
+    if (state.keysDown.ArrowDown) {
+      state.player.mine(state);
     }
   }
 
@@ -62,13 +55,25 @@ export function drawGame(state: State) {
   // only draw the tiles that are visible on the screen
   for (let y = state.viewport.startTile[1]; y <= state.viewport.endTile[1]; y++) {
     for (let x = state.viewport.startTile[0]; x <= state.viewport.endTile[0]; x++) {
-      switch (gameMap[y][x]) {
-        case 0:
-          state.ctx.fillStyle = "#685b48";
+      switch (state.gameMap[y][x]) {
+        case TileType.Sky:
+          state.ctx.fillStyle = "#86c5da";
+          break;
+        case TileType.Tunnel:
+          state.ctx.fillStyle = "#c6893d";
+          break;
+        case TileType.Earth:
+          state.ctx.fillStyle = "#964b00";
           break;
         default:
           state.ctx.fillStyle = "#5aa457";
       }
+
+      // debug the player's current tile
+      if (state.player.currentTile[0] === x && state.player.currentTile[1] === y) {
+        state.ctx.fillStyle = "#32CD32";
+      }
+
       state.ctx.fillRect(
         state.viewport.offset[0] + x * tileWidth,
         state.viewport.offset[1] + y * tileHeight,
