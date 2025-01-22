@@ -17,13 +17,17 @@ export function drawGame(state: State) {
   }
 
   const gravity = 5; //temp
-  const speed = 2; // temp
+  const speed = 2.36; // temp
 
   if (!state.player.isMining) {
     // handle gravity
     if (!state.keysDown.ArrowUp) {
       state.player.move(state, "down", gravity);
     }
+    // manual gravity
+    // if (state.keysDown.ArrowDown) {
+    //   state.player.move(state, "down", speed);
+    // }
 
     // check horizontal movement
     if (state.keysDown.ArrowLeft && !state.keysDown.ArrowRight) {
@@ -38,9 +42,9 @@ export function drawGame(state: State) {
     }
 
     // check if the player wants to start mining
-    if (state.keysDown.ArrowDown) {
-      state.player.mine(state);
-    }
+    // if (state.keysDown.ArrowDown) {
+    //   state.player.mine(state);
+    // }
   }
 
   // update the viewport camera

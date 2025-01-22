@@ -1,7 +1,7 @@
 import { State } from "@state";
 import { defaultSpeed, mapHeight, mapWidth, playerHeight, playerWidth, tileHeight, tileWidth } from "@utils/consts";
 import { TileType } from "@utils/enums";
-import { clamp } from "@utils/helpers/math-utils";
+import { clamp, range } from "@utils/helpers/math-utils";
 import { delay } from "@utils/helpers/time-utils";
 import { Direction } from "@utils/types";
 
@@ -82,84 +82,13 @@ export class Player {
   }
 
   /**
-   * calculate new tile position
-   * take into consideration the player's dimensions
-   * if the player is more than 50% on the next tile, move the player to the next tile
-   * also check the position (x and y) and ensure it does not divide by the tile width or height exactly,
-   * or the player will move to a tile a full tile width/height away
-   * @param state game state
-   * @param direction direction to move the player
-   * @param velocity velocity at which the player is moving, given the direction
+   * Calculate and set the current tile.
+   * Take into consideration the player's dimensions.
+   * If the player is more than 50% on the next tile, move the player to the next tile.
+   * Check the position (x and y) and ensure it does not divide by the tile width or height exactly,
+   * or the player will move to a tile a full tile width/height away.
    */
-  move(state: State, direction: Direction, velocity: number) {
-    const tileAbove = state.gameMap[this.currentTile[1] - 1]?.[this.currentTile[0]] ?? null;
-    const tileBelow = state.gameMap[this.currentTile[1] + 1]?.[this.currentTile[0]] ?? null;
-    const tileLeft = state.gameMap[this.currentTile[1]]?.[this.currentTile[0] - 1] ?? null;
-    const tileRight = state.gameMap[this.currentTile[1]]?.[this.currentTile[0] + 1] ?? null;
-
-    const hasSpaceVertically = Math.floor(this.position[1] % tileHeight) !== 0;
-    const hasSpaceHorizontally = Math.floor(this.position[0] % tileWidth) !== 0;
-    const hasSpaceRight = this.position[0] < this.currentTile[0] * tileWidth;
-    const hasSpaceLeft = this.position[0] > this.currentTile[0] * tileWidth;
-
-    const canMoveUp = tileAbove === TileType.Sky || tileAbove === TileType.Tunnel || hasSpaceVertically;
-    if (direction === "up" && !canMoveUp) {
-      return;
-    }
-
-    const canMoveDown =
-      this.isMining || tileBelow === TileType.Sky || tileBelow === TileType.Tunnel || hasSpaceVertically;
-    if (direction === "down" && !canMoveDown) {
-      return;
-    }
-
-    const canMoveLeft =
-      tileLeft === TileType.Sky || tileLeft === TileType.Tunnel || (hasSpaceHorizontally && hasSpaceLeft);
-    if (direction === "left" && !canMoveLeft) {
-      return;
-    }
-
-    const canMoveRight =
-      tileRight === TileType.Sky || tileRight === TileType.Tunnel || (hasSpaceHorizontally && hasSpaceRight);
-    if (direction === "right" && !canMoveRight) {
-      return;
-    }
-
-    let actualVelocity = velocity;
-    let offsetVelocity = 0; // this handles cases where velocity > remaining distance to the next tile
-    const xOffset = tileWidth - this.dimensions[0];
-    const yOffset = tileHeight - this.dimensions[1];
-    const tempPosition = [...this.position];
-    switch (direction) {
-      case "up":
-        if (canMoveUp) {
-          offsetVelocity = tileHeight - (tempPosition[1] % tileHeight);
-          actualVelocity = Math.min(velocity, offsetVelocity);
-        }
-        tempPosition[1] -= actualVelocity;
-        break;
-      case "down":
-        if (canMoveDown) {
-          offsetVelocity = tileHeight - (tempPosition[1] % tileHeight);
-          actualVelocity = Math.min(velocity, offsetVelocity);
-        }
-        tempPosition[1] += actualVelocity;
-        break;
-      case "left":
-        tempPosition[0] -= actualVelocity;
-        break;
-      case "right":
-        tempPosition[0] += actualVelocity;
-        break;
-      default:
-        break;
-    }
-    const newPosition = [
-      clamp(0, tempPosition[0], tileWidth * (mapWidth - 1) + xOffset),
-      clamp(0, tempPosition[1], tileHeight * (mapHeight - 1) + yOffset),
-    ];
-    this.position = newPosition;
-
+  computeCurrentTile() {
     const halfWidth = this.dimensions[0] / 2;
     const halfHeight = this.dimensions[1] / 2;
     const tileXPos = this.position[0] - halfWidth / tileWidth;
@@ -175,6 +104,208 @@ export class Player {
     this.currentTile = [tileX, tileY];
   }
 
+  getTile(state: State, xOffset: number, yOffset: number) {
+    const x = this.currentTile[0] + xOffset;
+    const y = this.currentTile[1] + yOffset;
+    if (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight) {
+      return {
+        position: [x, y],
+        type: state.gameMap[y]?.[x] ?? null,
+        screenPosition: [x * tileWidth, y * tileHeight],
+      };
+    }
+    return null;
+  }
+
+  isInTile(tile: { screenPosition: number[] } | null, newPos: typeof this.position) {
+    if (!tile) {
+      return false;
+    }
+
+    const [posX, posY] = newPos.map(Math.floor);
+    const [tilePosX, tilePosY] = tile.screenPosition.map(Math.floor);
+    const xPlayerRangeSet = new Set(range(posX, posX + playerWidth));
+    const xTileRangeSet = new Set(range(tilePosX, tilePosX + tileWidth));
+    const yPlayerRangeSet = new Set(range(posY, posY + playerHeight));
+    const yTileRangeSet = new Set(range(tilePosY, tilePosY + tileHeight));
+    return (
+      new Set([...xPlayerRangeSet].filter((x) => xTileRangeSet.has(x))).size > 0 &&
+      new Set([...yPlayerRangeSet].filter((y) => yTileRangeSet.has(y))).size > 0
+    );
+  }
+
+  canMoveUp(state: State, newPos: typeof this.position) {
+    const tileAbove = this.getTile(state, 0, -1);
+    const tileLeft = this.getTile(state, -1, 0);
+    const tileRight = this.getTile(state, 1, 0);
+    const tileTopLeft = this.getTile(state, -1, -1);
+    const tileTopRight = this.getTile(state, 1, -1);
+
+    const isInTileAbove = this.isInTile(tileAbove, newPos);
+    const isInTileLeft = this.isInTile(tileLeft, newPos);
+    const isInTileRight = this.isInTile(tileRight, newPos);
+    const isInTileTopLeft = this.isInTile(tileTopLeft, newPos);
+    const isInTileTopRight = this.isInTile(tileTopRight, newPos);
+
+    if (
+      (isInTileAbove && tileAbove?.type === TileType.Earth) ||
+      (isInTileLeft && tileLeft?.type === TileType.Earth) ||
+      (isInTileRight && tileRight?.type === TileType.Earth) ||
+      (isInTileTopLeft && tileTopLeft?.type === TileType.Earth) ||
+      (isInTileTopRight && tileTopRight?.type === TileType.Earth)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  canMoveDown(state: State, newPos: typeof this.position) {
+    const tileBelow = this.getTile(state, 0, 1);
+    const tileLeft = this.getTile(state, -1, 0);
+    const tileRight = this.getTile(state, 1, 0);
+    const tileBottomLeft = this.getTile(state, -1, 1);
+    const tileBottomRight = this.getTile(state, 1, 1);
+
+    const isInTileBelow = this.isInTile(tileBelow, newPos);
+    const isInTileLeft = this.isInTile(tileLeft, newPos);
+    const isInTileRight = this.isInTile(tileRight, newPos);
+    const isInTileBottomLeft = this.isInTile(tileBottomLeft, newPos);
+    const isInTileBottomRight = this.isInTile(tileBottomRight, newPos);
+
+    if (
+      (isInTileBelow && tileBelow?.type === TileType.Earth) ||
+      (isInTileLeft && tileLeft?.type === TileType.Earth) ||
+      (isInTileRight && tileRight?.type === TileType.Earth) ||
+      (isInTileBottomLeft && tileBottomLeft?.type === TileType.Earth) ||
+      (isInTileBottomRight && tileBottomRight?.type === TileType.Earth)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  canMoveLeft(state: State, newPos: typeof this.position) {
+    const tileAbove = this.getTile(state, 0, -1);
+    const tileBelow = this.getTile(state, 0, 1);
+    const tileLeft = this.getTile(state, -1, 0);
+    const tileTopLeft = this.getTile(state, -1, -1);
+    const tileBottomLeft = this.getTile(state, -1, 1);
+
+    const isInTileAbove = this.isInTile(tileAbove, newPos);
+    const isInTileBelow = this.isInTile(tileBelow, newPos);
+    const isInTileLeft = this.isInTile(tileLeft, newPos);
+    const isInTileTopLeft = this.isInTile(tileTopLeft, newPos);
+    const isInTileBottomLeft = this.isInTile(tileBottomLeft, newPos);
+
+    if (
+      (isInTileAbove && tileAbove?.type === TileType.Earth) ||
+      (isInTileBelow && tileBelow?.type === TileType.Earth) ||
+      (isInTileLeft && tileLeft?.type === TileType.Earth) ||
+      (isInTileTopLeft && tileTopLeft?.type === TileType.Earth) ||
+      (isInTileBottomLeft && tileBottomLeft?.type === TileType.Earth)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  canMoveRight(state: State, newPos: typeof this.position) {
+    const tileAbove = this.getTile(state, 0, -1);
+    const tileBelow = this.getTile(state, 0, 1);
+    const tileRight = this.getTile(state, 1, 0);
+    const tileTopRight = this.getTile(state, 1, -1);
+    const tileBottomRight = this.getTile(state, 1, 1);
+
+    const isInTileAbove = this.isInTile(tileAbove, newPos);
+    const isInTileBelow = this.isInTile(tileBelow, newPos);
+    const isInTileRight = this.isInTile(tileRight, newPos);
+    const isInTileTopRight = this.isInTile(tileTopRight, newPos);
+    const isInTileBottomRight = this.isInTile(tileBottomRight, newPos);
+
+    if (
+      (isInTileAbove && tileAbove?.type === TileType.Earth) ||
+      (isInTileBelow && tileBelow?.type === TileType.Earth) ||
+      (isInTileRight && tileRight?.type === TileType.Earth) ||
+      (isInTileTopRight && tileTopRight?.type === TileType.Earth) ||
+      (isInTileBottomRight && tileBottomRight?.type === TileType.Earth)
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  calculatePosition(direction: Direction, velocity: number) {
+    const calculatedVelocity = velocity;
+    const xOffset = tileWidth - this.dimensions[0];
+    const yOffset = tileHeight - this.dimensions[1];
+    const tempPosition = [...this.position];
+    switch (direction) {
+      case "up":
+        // TODO:
+        // if (calculatedVelocity > this.position[1] % tileHeight && this.position[1] % tileHeight > 0) {
+        //   calculatedVelocity = this.position[1] % tileHeight;
+        // }
+        tempPosition[1] -= calculatedVelocity;
+        break;
+      case "down":
+        // TODO:
+        // if (calculatedVelocity > tileHeight - (this.position[1] % tileHeight)) {
+        //   calculatedVelocity = tileHeight - (this.position[1] % tileHeight);
+        // }
+        tempPosition[1] += calculatedVelocity;
+        break;
+      case "left":
+        // TODO:
+        // if (calculatedVelocity > this.position[0] % tileWidth && this.position[0] % tileWidth > 0) {
+        //   calculatedVelocity = this.position[0] % tileWidth;
+        // }
+        tempPosition[0] -= calculatedVelocity;
+        break;
+      case "right":
+        // TODO:
+        // if (calculatedVelocity > tileWidth - (this.position[0] % tileWidth)) {
+        //   calculatedVelocity = tileWidth - (this.position[0] % tileWidth);
+        // }
+        tempPosition[0] += calculatedVelocity;
+        break;
+      default:
+        break;
+    }
+    return [
+      clamp(0, tempPosition[0], tileWidth * (mapWidth - 1) + xOffset),
+      clamp(0, tempPosition[1], tileHeight * (mapHeight - 1) + yOffset),
+    ].map(Math.floor);
+  }
+
+  /**
+   * @param state game state
+   * @param direction direction to move the player
+   * @param velocity velocity at which the player is moving, given the direction
+   */
+  move(state: State, direction: Direction, velocity: number) {
+    this.computeCurrentTile();
+
+    const newPos = this.calculatePosition(direction, velocity);
+
+    if (direction === "up" && !this.canMoveUp(state, newPos)) {
+      return;
+    }
+
+    if (direction === "down" && !this.canMoveDown(state, newPos) && !this.isMining) {
+      return;
+    }
+
+    if (direction === "left" && !this.canMoveLeft(state, newPos)) {
+      return;
+    }
+
+    if (direction === "right" && !this.canMoveRight(state, newPos)) {
+      return;
+    }
+
+    this.position = newPos;
+  }
+
   async mine(state: State) {
     const tileBelowType = state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
     if (
@@ -185,6 +316,7 @@ export class Player {
     ) {
       return;
     }
+
     this.isMining = true;
 
     for (let t = 0; t < tileHeight; t++) {

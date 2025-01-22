@@ -8,3 +8,7 @@
 export function clamp(min: number, value: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
+
+export function range(start: number, stop: number, step: number = 1): number[] {
+  return Array.from({ length: Math.ceil((stop - start) / step) }, (_, i) => start + i * step);
+}
