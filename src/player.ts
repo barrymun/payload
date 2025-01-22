@@ -6,12 +6,25 @@ import { delay } from "@utils/helpers/time-utils";
 import { Direction } from "@utils/types";
 
 export class Player {
+  private _state: State;
   private _currentTile = [1, 1]; // current tile position
   private _dimensions = [playerWidth, playerHeight]; // width and height of the player
   private _position = [tileWidth + playerWidth, tileHeight + playerHeight]; // starting x and y position of the player relative to top left corner
   private _speed = defaultSpeed; // speed of the player
   private _acceleration = 0.1; // TODO: acceleration applied to the player
   private _isMining = false; // is the player mining
+
+  constructor(state: State) {
+    this._state = state;
+  }
+
+  get state() {
+    return this._state;
+  }
+
+  set state(value) {
+    this._state = value;
+  }
 
   get currentTile() {
     return this._currentTile;
@@ -86,17 +99,16 @@ export class Player {
 
   /**
    * Retrieves the tile given the new position the player wishes to move to, considering the game map boundaries.
-   * @param state
    * @param newPos The position the player wishes to move to, represented as an array of two numbers [x, y].
    */
-  getTile(state: State, newPos: typeof this.position) {
+  getTile(newPos: typeof this.position) {
     const [xPos, yPos] = newPos;
     const x = this.currentTile[0] + xPos;
     const y = this.currentTile[1] + yPos;
     if (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight) {
       return {
         position: [x, y],
-        type: state.gameMap[y]?.[x] ?? null,
+        type: this.state.gameMap[y]?.[x] ?? null,
         screenPosition: [x * tileWidth, y * tileHeight],
       };
     }
@@ -131,15 +143,14 @@ export class Player {
    * each element og which is represented as an array of two numbers [x, y].
    * Check if the player (for any tile provided) is within that tile, and the tile is of a certain type.
    * If this is the case, then the player cannot move.
-   * @param state
    * @param newPos the position the player wishes to move to
    * @param tileCoords coords of the tiles around the player that must be checked
    * @returns `true` if the player can move else `false`
    */
-  canMove(state: State, newPos: typeof this.position, tileCoords: [number, number][]) {
+  canMove(newPos: typeof this.position, tileCoords: [number, number][]) {
     let r = true;
     for (const newPosCoords of tileCoords) {
-      const tile = this.getTile(state, newPosCoords);
+      const tile = this.getTile(newPosCoords);
       const isInTile = this.calcIsInTile(tile, newPos);
       if (isInTile && tile?.type === TileType.Earth) {
         r = false;
@@ -149,7 +160,7 @@ export class Player {
     return r;
   }
 
-  canMoveUp(state: State, newPos: typeof this.position) {
+  canMoveUp(newPos: typeof this.position) {
     const tileCoords: [number, number][] = [
       [0, -1], // above
       [-1, 0], // left
@@ -157,10 +168,10 @@ export class Player {
       [-1, -1], // left top
       [1, -1], // right top
     ];
-    return this.canMove(state, newPos, tileCoords);
+    return this.canMove(newPos, tileCoords);
   }
 
-  canMoveDown(state: State, newPos: typeof this.position) {
+  canMoveDown(newPos: typeof this.position) {
     const tileCoords: [number, number][] = [
       [0, 1], // below
       [-1, 0], // left
@@ -168,10 +179,10 @@ export class Player {
       [-1, 1], // left bottom
       [1, 1], // right bottom
     ];
-    return this.canMove(state, newPos, tileCoords);
+    return this.canMove(newPos, tileCoords);
   }
 
-  canMoveLeft(state: State, newPos: typeof this.position) {
+  canMoveLeft(newPos: typeof this.position) {
     const tileCoords: [number, number][] = [
       [0, -1], // above
       [0, 1], // below
@@ -179,10 +190,10 @@ export class Player {
       [-1, -1], // left top
       [-1, 1], // left bottom
     ];
-    return this.canMove(state, newPos, tileCoords);
+    return this.canMove(newPos, tileCoords);
   }
 
-  canMoveRight(state: State, newPos: typeof this.position) {
+  canMoveRight(newPos: typeof this.position) {
     const tileCoords: [number, number][] = [
       [0, -1], // above
       [0, 1], // below
@@ -190,7 +201,7 @@ export class Player {
       [1, -1], // right top
       [1, 1], // right bottom
     ];
-    return this.canMove(state, newPos, tileCoords);
+    return this.canMove(newPos, tileCoords);
   }
 
   calculatePosition(direction: Direction, velocity: number) {
@@ -237,36 +248,35 @@ export class Player {
   }
 
   /**
-   * @param state game state
    * @param direction direction to move the player
    * @param velocity velocity at which the player is moving, given the direction
    */
-  move(state: State, direction: Direction, velocity: number) {
+  move(direction: Direction, velocity: number) {
     this.computeCurrentTile();
 
     const newPos = this.calculatePosition(direction, velocity);
 
-    if (direction === "up" && !this.canMoveUp(state, newPos)) {
+    if (direction === "up" && !this.canMoveUp(newPos)) {
       return;
     }
 
-    if (direction === "down" && !this.canMoveDown(state, newPos) && !this.isMining) {
+    if (direction === "down" && !this.canMoveDown(newPos) && !this.isMining) {
       return;
     }
 
-    if (direction === "left" && !this.canMoveLeft(state, newPos)) {
+    if (direction === "left" && !this.canMoveLeft(newPos)) {
       return;
     }
 
-    if (direction === "right" && !this.canMoveRight(state, newPos)) {
+    if (direction === "right" && !this.canMoveRight(newPos)) {
       return;
     }
 
     this.position = newPos;
   }
 
-  async mine(state: State) {
-    const tileBelowType = state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
+  async mine() {
+    const tileBelowType = this.state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
     if (
       this.isMining ||
       this.currentTile[1] === mapHeight - 1 ||
@@ -279,11 +289,11 @@ export class Player {
     this.isMining = true;
 
     for (let t = 0; t < tileHeight; t++) {
-      this.move(state, "down", 1);
+      this.move("down", 1);
       await delay(10);
     }
 
-    state.gameMap[this.currentTile[1]][this.currentTile[0]] = TileType.Tunnel;
+    this.state.gameMap[this.currentTile[1]][this.currentTile[0]] = TileType.Tunnel;
 
     this.isMining = false;
   }

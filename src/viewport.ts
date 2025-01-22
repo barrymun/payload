@@ -1,10 +1,24 @@
+import { State } from "@state";
 import { mapHeight, mapWidth, tileHeight, tileWidth } from "@utils/consts";
 
 export class Viewport {
+  private _state: State;
   private _screen = [0, 0]; // dimensions of the drawing area (the canvas)
   private _startTile = [0, 0]; // top left tile position of the visible area
   private _endTile = [0, 0]; // bottom right tile position of the visible area
   private _offset = [0, 0]; // the x and y offset in pixels from the dead centre of the screen at which all tiles and map objects are drawn
+
+  constructor(state: State) {
+    this._state = state;
+  }
+
+  get state() {
+    return this._state;
+  }
+
+  set state(value) {
+    this._state = value;
+  }
 
   get screen() {
     return this._screen;
