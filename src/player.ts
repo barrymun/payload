@@ -6,15 +6,11 @@ import { delay } from "@utils/helpers/time-utils";
 import { Direction } from "@utils/types";
 
 export class Player {
-  // private _currentTile = [1, 1]; // current tile position
-  private _currentTile = [0, 0]; // current tile position
-  private _timeMoved = 0; // time at which movement began to the next tile
+  private _currentTile = [1, 1]; // current tile position
   private _dimensions = [playerWidth, playerHeight]; // width and height of the player
-  // private _position = [tileWidth + playerWidth, tileHeight + playerHeight]; // starting x and y position of the player relative to top left corner
-  private _position = [0, 0]; // starting x and y position of the player relative to top left corner
-  private _delayMove = 700; // time it takes to move from one tile to another in ms
+  private _position = [tileWidth + playerWidth, tileHeight + playerHeight]; // starting x and y position of the player relative to top left corner
   private _speed = defaultSpeed; // speed of the player
-  private _acceleration = 0.1; // acceleration applied to the player
+  private _acceleration = 0.1; // TODO: acceleration applied to the player
   private _isMining = false; // is the player mining
 
   get currentTile() {
@@ -23,14 +19,6 @@ export class Player {
 
   set currentTile(value) {
     this._currentTile = value;
-  }
-
-  get timeMoved() {
-    return this._timeMoved;
-  }
-
-  set timeMoved(value) {
-    this._timeMoved = value;
   }
 
   get dimensions() {
@@ -47,14 +35,6 @@ export class Player {
 
   set position(value) {
     this._position = value;
-  }
-
-  get delayMove() {
-    return this._delayMove;
-  }
-
-  set delayMove(value) {
-    this._delayMove = value;
   }
 
   get speed() {
@@ -104,9 +84,15 @@ export class Player {
     this.currentTile = [tileX, tileY];
   }
 
-  getTile(state: State, xOffset: number, yOffset: number) {
-    const x = this.currentTile[0] + xOffset;
-    const y = this.currentTile[1] + yOffset;
+  /**
+   * Retrieves the tile given the new position the player wishes to move to, considering the game map boundaries.
+   * @param state
+   * @param newPos The position the player wishes to move to, represented as an array of two numbers [x, y].
+   */
+  getTile(state: State, newPos: typeof this.position) {
+    const [xPos, yPos] = newPos;
+    const x = this.currentTile[0] + xPos;
+    const y = this.currentTile[1] + yPos;
     if (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight) {
       return {
         position: [x, y],
@@ -117,7 +103,13 @@ export class Player {
     return null;
   }
 
-  isInTile(tile: { screenPosition: number[] } | null, newPos: typeof this.position) {
+  /**
+   * Determines if a player's new position is within the bounds of a given tile.
+   * @param tile The tile to check against. If null, the function will return `false`.
+   * @param newPos The position the player wishes to move to, represented as an array of two numbers [x, y].
+   * @returns `true` if the player's new position overlaps with the tile's position; otherwise, `false`.
+   */
+  calcIsInTile(tile: { screenPosition: number[] } | null, newPos: typeof this.position) {
     if (!tile) {
       return false;
     }
@@ -134,104 +126,71 @@ export class Player {
     );
   }
 
-  canMoveUp(state: State, newPos: typeof this.position) {
-    const tileAbove = this.getTile(state, 0, -1);
-    const tileLeft = this.getTile(state, -1, 0);
-    const tileRight = this.getTile(state, 1, 0);
-    const tileTopLeft = this.getTile(state, -1, -1);
-    const tileTopRight = this.getTile(state, 1, -1);
-
-    const isInTileAbove = this.isInTile(tileAbove, newPos);
-    const isInTileLeft = this.isInTile(tileLeft, newPos);
-    const isInTileRight = this.isInTile(tileRight, newPos);
-    const isInTileTopLeft = this.isInTile(tileTopLeft, newPos);
-    const isInTileTopRight = this.isInTile(tileTopRight, newPos);
-
-    if (
-      (isInTileAbove && tileAbove?.type === TileType.Earth) ||
-      (isInTileLeft && tileLeft?.type === TileType.Earth) ||
-      (isInTileRight && tileRight?.type === TileType.Earth) ||
-      (isInTileTopLeft && tileTopLeft?.type === TileType.Earth) ||
-      (isInTileTopRight && tileTopRight?.type === TileType.Earth)
-    ) {
-      return false;
+  /**
+   * Check if the player can move given an array of coordinates,
+   * each element og which is represented as an array of two numbers [x, y].
+   * Check if the player (for any tile provided) is within that tile, and the tile is of a certain type.
+   * If this is the case, then the player cannot move.
+   * @param state
+   * @param newPos the position the player wishes to move to
+   * @param tileCoords coords of the tiles around the player that must be checked
+   * @returns `true` if the player can move else `false`
+   */
+  canMove(state: State, newPos: typeof this.position, tileCoords: [number, number][]) {
+    let r = true;
+    for (const newPosCoords of tileCoords) {
+      const tile = this.getTile(state, newPosCoords);
+      const isInTile = this.calcIsInTile(tile, newPos);
+      if (isInTile && tile?.type === TileType.Earth) {
+        r = false;
+        break;
+      }
     }
-    return true;
+    return r;
+  }
+
+  canMoveUp(state: State, newPos: typeof this.position) {
+    const tileCoords: [number, number][] = [
+      [0, -1], // above
+      [-1, 0], // left
+      [1, 0], // right
+      [-1, -1], // left top
+      [1, -1], // right top
+    ];
+    return this.canMove(state, newPos, tileCoords);
   }
 
   canMoveDown(state: State, newPos: typeof this.position) {
-    const tileBelow = this.getTile(state, 0, 1);
-    const tileLeft = this.getTile(state, -1, 0);
-    const tileRight = this.getTile(state, 1, 0);
-    const tileBottomLeft = this.getTile(state, -1, 1);
-    const tileBottomRight = this.getTile(state, 1, 1);
-
-    const isInTileBelow = this.isInTile(tileBelow, newPos);
-    const isInTileLeft = this.isInTile(tileLeft, newPos);
-    const isInTileRight = this.isInTile(tileRight, newPos);
-    const isInTileBottomLeft = this.isInTile(tileBottomLeft, newPos);
-    const isInTileBottomRight = this.isInTile(tileBottomRight, newPos);
-
-    if (
-      (isInTileBelow && tileBelow?.type === TileType.Earth) ||
-      (isInTileLeft && tileLeft?.type === TileType.Earth) ||
-      (isInTileRight && tileRight?.type === TileType.Earth) ||
-      (isInTileBottomLeft && tileBottomLeft?.type === TileType.Earth) ||
-      (isInTileBottomRight && tileBottomRight?.type === TileType.Earth)
-    ) {
-      return false;
-    }
-    return true;
+    const tileCoords: [number, number][] = [
+      [0, 1], // below
+      [-1, 0], // left
+      [1, 0], // right
+      [-1, 1], // left bottom
+      [1, 1], // right bottom
+    ];
+    return this.canMove(state, newPos, tileCoords);
   }
 
   canMoveLeft(state: State, newPos: typeof this.position) {
-    const tileAbove = this.getTile(state, 0, -1);
-    const tileBelow = this.getTile(state, 0, 1);
-    const tileLeft = this.getTile(state, -1, 0);
-    const tileTopLeft = this.getTile(state, -1, -1);
-    const tileBottomLeft = this.getTile(state, -1, 1);
-
-    const isInTileAbove = this.isInTile(tileAbove, newPos);
-    const isInTileBelow = this.isInTile(tileBelow, newPos);
-    const isInTileLeft = this.isInTile(tileLeft, newPos);
-    const isInTileTopLeft = this.isInTile(tileTopLeft, newPos);
-    const isInTileBottomLeft = this.isInTile(tileBottomLeft, newPos);
-
-    if (
-      (isInTileAbove && tileAbove?.type === TileType.Earth) ||
-      (isInTileBelow && tileBelow?.type === TileType.Earth) ||
-      (isInTileLeft && tileLeft?.type === TileType.Earth) ||
-      (isInTileTopLeft && tileTopLeft?.type === TileType.Earth) ||
-      (isInTileBottomLeft && tileBottomLeft?.type === TileType.Earth)
-    ) {
-      return false;
-    }
-    return true;
+    const tileCoords: [number, number][] = [
+      [0, -1], // above
+      [0, 1], // below
+      [-1, 0], // left
+      [-1, -1], // left top
+      [-1, 1], // left bottom
+    ];
+    return this.canMove(state, newPos, tileCoords);
   }
 
   canMoveRight(state: State, newPos: typeof this.position) {
-    const tileAbove = this.getTile(state, 0, -1);
-    const tileBelow = this.getTile(state, 0, 1);
-    const tileRight = this.getTile(state, 1, 0);
-    const tileTopRight = this.getTile(state, 1, -1);
-    const tileBottomRight = this.getTile(state, 1, 1);
-
-    const isInTileAbove = this.isInTile(tileAbove, newPos);
-    const isInTileBelow = this.isInTile(tileBelow, newPos);
-    const isInTileRight = this.isInTile(tileRight, newPos);
-    const isInTileTopRight = this.isInTile(tileTopRight, newPos);
-    const isInTileBottomRight = this.isInTile(tileBottomRight, newPos);
-
-    if (
-      (isInTileAbove && tileAbove?.type === TileType.Earth) ||
-      (isInTileBelow && tileBelow?.type === TileType.Earth) ||
-      (isInTileRight && tileRight?.type === TileType.Earth) ||
-      (isInTileTopRight && tileTopRight?.type === TileType.Earth) ||
-      (isInTileBottomRight && tileBottomRight?.type === TileType.Earth)
-    ) {
-      return false;
-    }
-    return true;
+    const tileCoords: [number, number][] = [
+      [0, -1], // above
+      [0, 1], // below
+      [1, 0], // right
+      [1, -1], // right top
+      [1, 1], // right bottom
+    ];
+    return this.canMove(state, newPos, tileCoords);
   }
 
   calculatePosition(direction: Direction, velocity: number) {
@@ -324,7 +283,6 @@ export class Player {
       await delay(10);
     }
 
-    // set the new tile type
     state.gameMap[this.currentTile[1]][this.currentTile[0]] = TileType.Tunnel;
 
     this.isMining = false;
