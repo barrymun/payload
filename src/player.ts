@@ -82,16 +82,18 @@ export class Player {
    * or the player will move to a tile a full tile width/height away.
    */
   computeCurrentTile() {
-    const halfWidth = this.dimensions[0] / 2;
-    const halfHeight = this.dimensions[1] / 2;
-    const tileXPos = this.position[0] - halfWidth / tileWidth;
-    const tileYPos = this.position[1] - halfHeight / tileHeight;
-    let tileX = Math.floor(this.position[0] / tileWidth);
-    let tileY = Math.floor(this.position[1] / tileHeight);
-    if (this.position[0] % tileWidth !== 0 && tileXPos % tileWidth > halfWidth) {
+    const [xDim, yDim] = this.dimensions;
+    const [xPos, yPos] = this.position;
+    const halfWidth = tileWidth / 2 + (tileWidth - xDim) / 2;
+    const halfHeight = tileHeight / 2 + (tileHeight - yDim) / 2;
+    const tileXPos = Math.floor(xPos - halfWidth / tileWidth);
+    const tileYPos = Math.floor(yPos - halfHeight / tileHeight);
+    let tileX = Math.floor(xPos / tileWidth);
+    let tileY = Math.floor(yPos / tileHeight);
+    if (Math.floor(xPos % tileWidth) !== 0 && tileXPos % tileWidth > halfWidth) {
       tileX += 1;
     }
-    if (this.position[1] % tileHeight !== 0 && tileYPos % tileHeight > halfHeight) {
+    if (Math.floor(yPos % tileHeight) !== 0 && tileYPos % tileHeight > halfHeight) {
       tileY += 1;
     }
     this.currentTile = [tileX, tileY];
