@@ -80,9 +80,9 @@ export class Engine {
 
       // TODO: re-implement
       // check if the player wants to start mining
-      // if (state.keysDown.ArrowDown) {
-      //   this.player.mine(state);
-      // }
+      if (this.state.keysDown.ArrowDown) {
+        this.player.mine();
+      }
     }
 
     // update the viewport camera

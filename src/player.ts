@@ -13,6 +13,7 @@ export class Player {
   private _speed = defaultSpeed; // speed of the player
   private _acceleration = 0.1; // TODO: acceleration applied to the player
   private _isMining = false; // is the player mining
+  private _miningDelay = 20; // delay in ms when mining when drilling through each pixel
 
   constructor(state: State) {
     this._state = state;
@@ -74,6 +75,14 @@ export class Player {
     this._isMining = value;
   }
 
+  get miningDelay() {
+    return this._miningDelay;
+  }
+
+  set miningDelay(value) {
+    this._miningDelay = value;
+  }
+
   /**
    * Calculate and set the current tile.
    * Take into consideration the player's dimensions.
@@ -118,6 +127,27 @@ export class Player {
   }
 
   /**
+   * Calculate the ranges for the "is within tile" and "is fully within tile" methods.
+   * @param tile The tile to check against.
+   * @param newPos The position the player wishes to move to, represented as an array of two numbers [x, y].
+   * @returns The relevant ranges to check.
+   */
+  calcIsInTileRanges(tile: { screenPosition: number[] }, newPos: typeof this.position) {
+    const [posX, posY] = newPos.map(Math.floor);
+    const [tilePosX, tilePosY] = tile.screenPosition.map(Math.floor);
+    const xPlayerRangeSet = new Set(range(posX, posX + playerWidth));
+    const xTileRangeSet = new Set(range(tilePosX, tilePosX + tileWidth));
+    const yPlayerRangeSet = new Set(range(posY, posY + playerHeight));
+    const yTileRangeSet = new Set(range(tilePosY, tilePosY + tileHeight));
+    return {
+      xPlayerRangeSet,
+      xTileRangeSet,
+      yPlayerRangeSet,
+      yTileRangeSet,
+    };
+  }
+
+  /**
    * Determines if a player's new position is within the bounds of a given tile.
    * @param tile The tile to check against. If null, the function will return `false`.
    * @param newPos The position the player wishes to move to, represented as an array of two numbers [x, y].
@@ -128,15 +158,28 @@ export class Player {
       return false;
     }
 
-    const [posX, posY] = newPos.map(Math.floor);
-    const [tilePosX, tilePosY] = tile.screenPosition.map(Math.floor);
-    const xPlayerRangeSet = new Set(range(posX, posX + playerWidth));
-    const xTileRangeSet = new Set(range(tilePosX, tilePosX + tileWidth));
-    const yPlayerRangeSet = new Set(range(posY, posY + playerHeight));
-    const yTileRangeSet = new Set(range(tilePosY, tilePosY + tileHeight));
+    const { xPlayerRangeSet, xTileRangeSet, yPlayerRangeSet, yTileRangeSet } = this.calcIsInTileRanges(tile, newPos);
     return (
       new Set([...xPlayerRangeSet].filter((x) => xTileRangeSet.has(x))).size > 0 &&
       new Set([...yPlayerRangeSet].filter((y) => yTileRangeSet.has(y))).size > 0
+    );
+  }
+
+  /**
+   * Determines if a player's new position is fully contained within the given tile.
+   * @param tile The tile to check against. If null, the function will return `false`.
+   * @param newPos The position the player wishes to move to, represented as an array of two numbers [x, y].
+   * @returns `true` if the player's new position is fully contained within the tile's position; otherwise, `false`.
+   */
+  calcIsFullyInTile(tile: { screenPosition: number[] } | null, newPos: typeof this.position): boolean {
+    if (!tile) {
+      return false;
+    }
+
+    const { xPlayerRangeSet, xTileRangeSet, yPlayerRangeSet, yTileRangeSet } = this.calcIsInTileRanges(tile, newPos);
+    return (
+      [...xPlayerRangeSet].every((value) => xTileRangeSet.has(value)) &&
+      [...yPlayerRangeSet].every((value) => yTileRangeSet.has(value))
     );
   }
 
@@ -277,7 +320,18 @@ export class Player {
     this.position = newPos;
   }
 
+  canMine() {
+    // check if the player is within the bounds of the current tile
+    const tile = this.getTile([0, 0]);
+    const isInTile = this.calcIsFullyInTile(tile, this.position);
+    return isInTile;
+  }
+
   async mine() {
+    if (!this.canMine()) {
+      return;
+    }
+
     const tileBelowType = this.state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
     if (
       this.isMining ||
@@ -290,9 +344,10 @@ export class Player {
 
     this.isMining = true;
 
+    // for (let t = 0; t < tileHeight - 10; t++) {
     for (let t = 0; t < tileHeight; t++) {
       this.move("down", 1);
-      await delay(10);
+      await delay(this.miningDelay);
     }
 
     this.state.gameMap[this.currentTile[1]][this.currentTile[0]] = TileType.Tunnel;
