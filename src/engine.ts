@@ -68,9 +68,17 @@ export class Engine {
 
       // check horizontal movement
       if (this.state.keysDown.ArrowLeft && !this.state.keysDown.ArrowRight) {
-        this.player.move("left", speed);
+        if (this.player.canMine("left")) {
+          this.player.mine("left");
+        } else {
+          this.player.move("left", speed);
+        }
       } else if (this.state.keysDown.ArrowRight && !this.state.keysDown.ArrowLeft) {
-        this.player.move("right", speed);
+        if (this.player.canMine("right")) {
+          this.player.mine("right");
+        } else {
+          this.player.move("right", speed);
+        }
       }
 
       // check if the player wants to fly (arrow up pressed)
@@ -81,7 +89,7 @@ export class Engine {
       // TODO: re-implement
       // check if the player wants to start mining
       if (this.state.keysDown.ArrowDown) {
-        this.player.mine();
+        this.player.mine("down");
       }
     }
 

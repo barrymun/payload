@@ -3,7 +3,7 @@ import { defaultSpeed, mapHeight, mapWidth, playerHeight, playerWidth, tileHeigh
 import { TileType } from "@utils/enums";
 import { clamp, range } from "@utils/helpers/math-utils";
 import { delay } from "@utils/helpers/time-utils";
-import { Direction } from "@utils/types";
+import { Direction, MiningDirection } from "@utils/types";
 
 export class Player {
   private _state: State;
@@ -224,7 +224,7 @@ export class Player {
       [-1, 1], // left bottom
       [1, 1], // right bottom
     ];
-    return this.canMove(newPos, tileCoords);
+    return this.canMove(newPos, tileCoords) && !this.isMining;
   }
 
   canMoveLeft(newPos: typeof this.position) {
@@ -309,44 +309,69 @@ export class Player {
       return;
     }
 
-    if (direction === "left" && !this.canMoveLeft(newPos)) {
+    if (direction === "left" && !this.canMoveLeft(newPos) && !this.isMining) {
       return;
     }
 
-    if (direction === "right" && !this.canMoveRight(newPos)) {
+    if (direction === "right" && !this.canMoveRight(newPos) && !this.isMining) {
       return;
     }
 
     this.position = newPos;
   }
 
-  canMine() {
+  // TODO: need a delay to check that the player has not moved for say 100ms before they can mine
+  canMine(direction: MiningDirection): boolean {
     // check if the player is within the bounds of the current tile
     const tile = this.getTile([0, 0]);
     const isInTile = this.calcIsFullyInTile(tile, this.position);
-    return isInTile;
-  }
 
-  async mine() {
-    if (!this.canMine()) {
-      return;
+    // check the type of the tile to be mined
+    let tileToBeMinedType: number | null = null;
+    switch (direction) {
+      case "down":
+        tileToBeMinedType = this.state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
+        break;
+      case "left":
+        tileToBeMinedType = this.state.gameMap[this.currentTile[1]][this.currentTile[0] - 1];
+        break;
+      case "right":
+        tileToBeMinedType = this.state.gameMap[this.currentTile[1]][this.currentTile[0] + 1];
+        break;
+      default:
+        break;
     }
 
-    const tileBelowType = this.state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
+    if (tileToBeMinedType === null) {
+      return false;
+    }
+
     if (
+      !isInTile ||
       this.isMining ||
-      this.currentTile[1] === mapHeight - 1 ||
-      tileBelowType === TileType.Sky ||
-      tileBelowType === TileType.Tunnel
+      (direction === "down" && this.currentTile[1] === mapHeight - 1) ||
+      (direction === "left" && this.currentTile[0] === 0) ||
+      (direction === "right" && this.currentTile[0] === mapWidth - 1) ||
+      tileToBeMinedType === TileType.Sky ||
+      tileToBeMinedType === TileType.Tunnel
     ) {
+      return false;
+    }
+    return true;
+  }
+
+  async mine(direction: MiningDirection) {
+    if (!this.canMine(direction)) {
       return;
     }
 
     this.isMining = true;
 
-    // for (let t = 0; t < tileHeight - 10; t++) {
-    for (let t = 0; t < tileHeight; t++) {
-      this.move("down", 1);
+    const bounds = direction === "down" ? tileHeight : tileWidth;
+
+    // for (let t = 0; t < tileHeight - 10; t++) { // TODO; move the player towards the center of the tile while mining
+    for (let t = 0; t < bounds; t++) {
+      this.move(direction, 1);
       await delay(this.miningDelay);
     }
 
