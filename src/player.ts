@@ -250,46 +250,46 @@ export class Player {
   }
 
   calculatePosition(direction: Direction, velocity: number) {
-    const calculatedVelocity = velocity;
     const xOffset = tileWidth - this.dimensions[0];
     const yOffset = tileHeight - this.dimensions[1];
     const tempPosition = [...this.position];
+
     switch (direction) {
       case "up":
-        // TODO:
-        // if (calculatedVelocity > this.position[1] % tileHeight && this.position[1] % tileHeight > 0) {
-        //   calculatedVelocity = this.position[1] % tileHeight;
-        // }
-        tempPosition[1] -= calculatedVelocity;
+        tempPosition[1] -= velocity;
         break;
       case "down":
-        // TODO:
-        // if (calculatedVelocity > tileHeight - (this.position[1] % tileHeight)) {
-        //   calculatedVelocity = tileHeight - (this.position[1] % tileHeight);
-        // }
-        tempPosition[1] += calculatedVelocity;
+        tempPosition[1] += velocity;
         break;
       case "left":
-        // TODO:
-        // if (calculatedVelocity > this.position[0] % tileWidth && this.position[0] % tileWidth > 0) {
-        //   calculatedVelocity = this.position[0] % tileWidth;
-        // }
-        tempPosition[0] -= calculatedVelocity;
+        tempPosition[0] -= velocity;
         break;
       case "right":
-        // TODO:
-        // if (calculatedVelocity > tileWidth - (this.position[0] % tileWidth)) {
-        //   calculatedVelocity = tileWidth - (this.position[0] % tileWidth);
-        // }
-        tempPosition[0] += calculatedVelocity;
+        tempPosition[0] += velocity;
         break;
       default:
         break;
     }
+
     return [
       clamp(0, tempPosition[0], tileWidth * (mapWidth - 1) + xOffset),
       clamp(0, tempPosition[1], tileHeight * (mapHeight - 1) + yOffset),
     ].map(Math.floor);
+  }
+
+  /**
+   * Check if the player is touching the ground, assuming they cannot move further down.
+   */
+  isAtGroundLevel(): boolean {
+    return this.position[1] + tileHeight - (tileHeight - playerHeight) === (this.currentTile[1] + 1) * tileHeight;
+  }
+
+  isTouchingRightTile(): boolean {
+    return this.position[0] + tileWidth - (tileWidth - playerWidth) === (this.currentTile[0] + 1) * tileWidth;
+  }
+
+  isTouchingLeftTile(): boolean {
+    return this.position[0] === this.currentTile[0] * tileWidth;
   }
 
   /**
@@ -306,14 +306,24 @@ export class Player {
     }
 
     if (direction === "down" && !this.canMoveDown(newPos) && !this.isMining) {
+      if (!this.isAtGroundLevel()) {
+        // If not at ground level, then set the player's y position to be ground level.
+        this.position[1] = this.currentTile[1] * tileHeight;
+      }
       return;
     }
 
     if (direction === "left" && !this.canMoveLeft(newPos) && !this.isMining) {
+      if (!this.isTouchingLeftTile()) {
+        this.position[0] = this.currentTile[0] * tileWidth;
+      }
       return;
     }
 
     if (direction === "right" && !this.canMoveRight(newPos) && !this.isMining) {
+      if (!this.isTouchingRightTile()) {
+        this.position[0] = this.currentTile[0] * tileWidth + (tileWidth - playerWidth);
+      }
       return;
     }
 
@@ -325,18 +335,34 @@ export class Player {
     // check if the player is within the bounds of the current tile
     const tile = this.getTile([0, 0]);
     const isInTile = this.calcIsFullyInTile(tile, this.position);
+    const tileBelow = this.state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
+    const tileLeft = this.state.gameMap[this.currentTile[1]][this.currentTile[0] - 1];
+    const tileRight = this.state.gameMap[this.currentTile[1]][this.currentTile[0] + 1];
+
+    // check that the player is touching the ground and that the tileBelow is solid (cannot mine in mid air)
+    if (!this.isAtGroundLevel() || tileBelow !== TileType.Earth) {
+      return false;
+    }
+
+    // check that the player is against the edge of the tile to be mined
+    if (direction === "left" && !this.isTouchingLeftTile()) {
+      return false;
+    }
+    if (direction === "right" && !this.isTouchingRightTile()) {
+      return false;
+    }
 
     // check the type of the tile to be mined
     let tileToBeMinedType: number | null = null;
     switch (direction) {
       case "down":
-        tileToBeMinedType = this.state.gameMap[this.currentTile[1] + 1][this.currentTile[0]];
+        tileToBeMinedType = tileBelow;
         break;
       case "left":
-        tileToBeMinedType = this.state.gameMap[this.currentTile[1]][this.currentTile[0] - 1];
+        tileToBeMinedType = tileLeft;
         break;
       case "right":
-        tileToBeMinedType = this.state.gameMap[this.currentTile[1]][this.currentTile[0] + 1];
+        tileToBeMinedType = tileRight;
         break;
       default:
         break;
@@ -357,6 +383,7 @@ export class Player {
     ) {
       return false;
     }
+
     return true;
   }
 
@@ -369,7 +396,7 @@ export class Player {
 
     const bounds = direction === "down" ? tileHeight : tileWidth;
 
-    // for (let t = 0; t < tileHeight - 10; t++) { // TODO; move the player towards the center of the tile while mining
+    // TODO: move the player towards the center of the tile while mining (if they are near the edges)?
     for (let t = 0; t < bounds; t++) {
       this.move(direction, 1);
       await delay(this.miningDelay);

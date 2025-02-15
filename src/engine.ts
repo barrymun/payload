@@ -68,13 +68,13 @@ export class Engine {
 
       // check horizontal movement
       if (this.state.keysDown.ArrowLeft && !this.state.keysDown.ArrowRight) {
-        if (this.player.canMine("left")) {
+        if (this.player.canMine("left") && !this.state.keysDown.ArrowUp && !this.state.keysDown.ArrowDown) {
           this.player.mine("left");
         } else {
           this.player.move("left", speed);
         }
       } else if (this.state.keysDown.ArrowRight && !this.state.keysDown.ArrowLeft) {
-        if (this.player.canMine("right")) {
+        if (this.player.canMine("right") && !this.state.keysDown.ArrowUp && !this.state.keysDown.ArrowDown) {
           this.player.mine("right");
         } else {
           this.player.move("right", speed);
