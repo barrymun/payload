@@ -14,6 +14,9 @@ export class Player {
   private _acceleration = 0.1; // TODO: acceleration applied to the player
   private _isMining = false; // is the player mining
   private _miningDelay = 20; // delay in ms when mining when drilling through each pixel
+  private _miningBlocked = false; // block the mining ability
+  private _miningBlockedTimeout = 400; // ms
+  private _miningTimeoutId: number | null = null;
 
   constructor(state: State) {
     this._state = state;
@@ -75,12 +78,42 @@ export class Player {
     this._isMining = value;
   }
 
-  get miningDelay() {
+  private get miningDelay() {
     return this._miningDelay;
   }
 
-  set miningDelay(value) {
+  private set miningDelay(value) {
     this._miningDelay = value;
+  }
+
+  private get miningBlocked() {
+    return this._miningBlocked;
+  }
+
+  private set miningBlocked(value) {
+    this._miningBlocked = value;
+  }
+
+  private get miningBlockedTimeout() {
+    return this._miningBlockedTimeout;
+  }
+
+  private set miningBlockedTimeout(value) {
+    this._miningBlockedTimeout = value;
+  }
+
+  private get miningTimeoutId() {
+    return this._miningTimeoutId;
+  }
+
+  private set miningTimeoutId(value) {
+    this._miningTimeoutId = value;
+  }
+
+  releaseMiningBlock() {
+    setTimeout(() => {
+      this.miningBlocked = false;
+    }, this.miningBlockedTimeout);
   }
 
   /**
@@ -185,7 +218,7 @@ export class Player {
 
   /**
    * Check if the player can move given an array of coordinates,
-   * each element og which is represented as an array of two numbers [x, y].
+   * each element of which is represented as an array of two numbers [x, y].
    * Check if the player (for any tile provided) is within that tile, and the tile is of a certain type.
    * If this is the case, then the player cannot move.
    * @param newPos the position the player wishes to move to
@@ -327,11 +360,26 @@ export class Player {
       return;
     }
 
+    // Checks cleared, set the player's new position.
     this.position = newPos;
+
+    // Block the player from mining for a short period after movement.
+    this.miningBlocked = true;
+
+    // Release the block after a short delay.
+    if (this.miningTimeoutId) {
+      clearTimeout(this.miningTimeoutId);
+    }
+    this.miningTimeoutId = setTimeout(() => {
+      this.releaseMiningBlock();
+    }, 100);
   }
 
-  // TODO: need a delay to check that the player has not moved for say 100ms before they can mine
   canMine(direction: MiningDirection): boolean {
+    if (this.miningBlocked) {
+      return false;
+    }
+
     // check if the player is within the bounds of the current tile
     const tile = this.getTile([0, 0]);
     const isInTile = this.calcIsFullyInTile(tile, this.position);
@@ -393,6 +441,7 @@ export class Player {
     }
 
     this.isMining = true;
+    this.miningBlocked = true;
 
     const bounds = direction === "down" ? tileHeight : tileWidth;
 
@@ -405,5 +454,6 @@ export class Player {
     this.state.gameMap[this.currentTile[1]][this.currentTile[0]] = TileType.Tunnel;
 
     this.isMining = false;
+    this.releaseMiningBlock();
   }
 }
