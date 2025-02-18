@@ -22,63 +22,63 @@ export class Player {
     this._state = state;
   }
 
-  get state() {
+  public get state() {
     return this._state;
   }
 
-  set state(value) {
+  private set state(value) {
     this._state = value;
   }
 
-  get currentTile() {
+  public get currentTile() {
     return this._currentTile;
   }
 
-  set currentTile(value) {
+  private set currentTile(value) {
     this._currentTile = value;
   }
 
-  get dimensions() {
+  public get dimensions() {
     return this._dimensions;
   }
 
-  set dimensions(value) {
+  private set dimensions(value) {
     this._dimensions = value;
   }
 
-  get position() {
+  public get position() {
     return this._position;
   }
 
-  set position(value) {
+  private set position(value) {
     this._position = value;
   }
 
-  get speed() {
+  public get speed() {
     return this._speed;
   }
 
-  set speed(value) {
+  private set speed(value) {
     this._speed = value;
   }
 
-  get acceleration() {
+  public get acceleration() {
     return this._acceleration;
   }
 
-  set acceleration(value) {
+  private set acceleration(value) {
     this._acceleration = value;
   }
 
-  get isMining() {
+  public get isMining() {
     return this._isMining;
   }
 
-  set isMining(value) {
+  private set isMining(value) {
     this._isMining = value;
   }
 
-  private get miningDelay() {
+  public get miningDelay() {
     return this._miningDelay;
   }
 
@@ -86,7 +86,7 @@ export class Player {
     this._miningDelay = value;
   }
 
-  private get miningBlocked() {
+  public get miningBlocked() {
     return this._miningBlocked;
   }
 
@@ -94,7 +94,7 @@ export class Player {
     this._miningBlocked = value;
   }
 
-  private get miningBlockedTimeout() {
+  public get miningBlockedTimeout() {
     return this._miningBlockedTimeout;
   }
 
@@ -102,7 +102,7 @@ export class Player {
     this._miningBlockedTimeout = value;
   }
 
-  private get miningTimeoutId() {
+  public get miningTimeoutId() {
     return this._miningTimeoutId;
   }
 
